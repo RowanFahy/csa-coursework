@@ -30,7 +30,7 @@ func distributor(p Params, c distributorChannels) {
 	}
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
-	complete := FinalTurnComplete{p.Turns, calculateAliveCells(p, world)} //Uses FinalTurnComplete with calculateAliveCells
+	c.events <- FinalTurnComplete{p.Turns + 1, calculateAliveCells(p, world)} //Uses FinalTurnComplete with calculateAliveCells
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
@@ -76,43 +76,61 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 func aliveNeighbours(p Params, world [][]byte, x int, y int) int {
 	sum := 0
 
-	for i := y - 1; i < y+2; i++ { //Iterate through the top, middle, and bottom row
-		for j := x - 1; j < x+2; j++ { //Iterate through the left, middle and right column
+	above := y - 1
+	below := y + 1
+	left := x - 1
+	right := x + 1
 
-			currentHeight := i //Set currentHeight to i to use so we can change it due to board wrapping if needed
-			if currentHeight < 0 {
-				currentHeight = p.ImageHeight - 1 //If negative, means it should wrap to the 'bottom' of the board
-			}
-			if currentHeight > p.ImageHeight-1 {
-				currentHeight = 0 //If over the image height, must wrap to the 'top' of the board
-			}
-
-			currentWidth := j
-			if currentWidth < 0 {
-				currentWidth = p.ImageWidth - 1 //If negative, means it should wrap to the 'right' of the board
-			}
-			if currentWidth > p.ImageWidth-1 {
-				currentWidth = 0 //If over the image width, means it should wrap to the 'left' of the board
-			}
-
-			if world[currentHeight][currentWidth] == 255 {
-				sum++ //If the cell is alive, add 1 to the sum of alive neighbours
-			}
-		}
-
+	if above < 0 {
+		above = p.ImageHeight - 1
 	}
+	if below > p.ImageHeight-1 {
+		below = 0
+	}
+	if left < 0 {
+		left = p.ImageWidth - 1
+	}
+	if right > p.ImageWidth-1 {
+		right = 0
+	}
+
+	if world[above][left] == 255 {
+		sum++
+	}
+	if world[above][x] == 255 {
+		sum++
+	}
+	if world[above][right] == 255 {
+		sum++
+	}
+	if world[y][left] == 255 {
+		sum++
+	}
+	if world[y][right] == 255 {
+		sum++
+	}
+	if world[below][left] == 255 {
+		sum++
+	}
+	if world[below][x] == 255 {
+		sum++
+	}
+	if world[below][right] == 255 {
+		sum++
+	}
+
 	return sum //Return sum of alive neighbours
 }
 
 func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 	alive := make([]util.Cell, 0)
 
-	for x := 0; x < p.ImageWidth; x++ {
-		for y := 0; y < p.ImageHeight; y++ {
-			if world[x][y] == 255 { //Iterate through all cells, if they are value 255 add it to the slice of alive cells
-				alive = append(alive, util.Cell{y, x})
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
+			if world[y][x] == 255 {
+				alive = append(alive, util.Cell{x, y})
 			}
 		}
 	}
-	return alive //Return slice of alive neighbours
+	return alive
 }
