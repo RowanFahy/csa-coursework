@@ -30,7 +30,8 @@ func distributor(p Params, c distributorChannels) {
 	}
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
-	c.events <- FinalTurnComplete{p.Turns + 1, calculateAliveCells(p, world)} //Uses FinalTurnComplete with calculateAliveCells
+	alive := calculateAliveCells(p, world)
+	c.events <- FinalTurnComplete{p.Turns + 1, alive} //Uses FinalTurnComplete with calculateAliveCells
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
