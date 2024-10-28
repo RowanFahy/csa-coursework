@@ -13,22 +13,34 @@ type distributorChannels struct {
 
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
+	c.ioFilename<- "/csa-coursework/images/16x16.pgm"
+	c.ioCommand<- 1
+	<-c.ioInput
+
 
 	// TODO: Create a 2D slice to store the world.
-	world := make([][]byte, 0)
+	world := make([][]byte, p.ImageHeight)
+	for i := range world { world[i] = make([]byte, p.ImageWidth) }
+
+
+
+
 
 	turn := 0
 	c.events <- StateChange{turn, Executing}
 
 	// TODO: Execute all turns of the Game of Life.
-	for i := 0; i < p.Turns; i++ {
-		world = calculateNextState(p, world) //Iterate through all turns
+	completedTurns := 0
+	if p.Turns > 0 {
+		for i := 0; i < p.Turns; i++ {
+			world = calculateNextState(p, world) //Iterate through all turns
+			completedTurns++
+		}
 	}
-
 	// TODO: Report the final state using FinalTurnCompleteEvent.
+	alive := calculateAliveCells(p, world)
 
-
-	c.events <- FinalTurnComplete{p.Turns, calculateAliveCells(p, world)} //Uses FinalTurnComplete with calculateAliveCells
+	c.events <- FinalTurnComplete{completedTurns, alive} //Uses FinalTurnComplete with calculateAliveCells
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
