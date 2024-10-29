@@ -2,6 +2,7 @@ package gol
 
 import (
 	"strconv"
+	"time"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -17,9 +18,10 @@ type distributorChannels struct {
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 
+
+
 		c.ioCommand<- ioInput
 		c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
-
 
 
 
@@ -35,7 +37,14 @@ func distributor(p Params, c distributorChannels) {
 	}
 
 	turn := 0
+	var turnPointer *int
+	turnPointer = &turn
+
+
+
 	c.events <- StateChange{turn, Executing}
+
+	go ticker(turnPointer, c, p, world)
 
 	// TODO: Execute all turns of the Game of Life.
 	if p.Turns > 0 {
@@ -110,7 +119,6 @@ func shouldCellBeAlive(x, y int, world [][]byte, aliveNeighbours int) bool {
 	} else {return false}
 }
 
-
 func worker(startY, endY, endX int, world [][]byte, p Params, out chan<- []util.Cell) {
 	aliveNextTurn := []util.Cell{}
 
@@ -152,4 +160,11 @@ func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 		}
 	}
 	return alive
+}
+
+func ticker(turns *int, c distributorChannels, p Params, world [][]byte) {
+	for {
+		time.Sleep(2 * time.Second)
+		c.events <- AliveCellsCount{*turns, len(calculateAliveCells(p, world))}
+	}
 }
