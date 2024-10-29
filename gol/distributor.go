@@ -66,17 +66,30 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 	newWorld := make([][]byte, len(world)) //Make a new world to return
 	copy(newWorld, world)                  //Copy world to newWorld
 
-	for y := 0; y < p.ImageHeight; y++ { //Iterate through all rows
-		for x := 0; x < p.ImageWidth; x++ { //Iterate through all columns
-			aliveNeighbours := aliveNeighbours(p, world, x, y) //Count alive neighbours using the function
+	channels := []chan []util.Cell{}
 
-			if world[y][x] == 255 && (aliveNeighbours == 2 || aliveNeighbours == 3) {
-				alive = append(alive, util.Cell{x, y}) //Rule for alive cells to stay alive
-			} else if world[y][x] == 0 && aliveNeighbours == 3 {
-				alive = append(alive, util.Cell{x, y}) //Rule for dead cells to become alive
+	if p.Threads == 1 {
+		for y := 0; y < p.ImageHeight; y++ { //Iterate through all rows
+			for x := 0; x < p.ImageWidth; x++ { //Iterate through all columns
+				aliveNeighbours := aliveNeighbours(p, world, x, y) //Count alive neighbours using the function
+				 if (shouldCellBeAlive(x, y, world, aliveNeighbours)) {alive = append(alive, util.Cell{x, y})}
 			}
 		}
+	} else {
+		for i := 0; i < p.Threads; i++ {
+			startHeight := (p.ImageHeight / p.Threads) * i
+			endHeight := (p.ImageHeight / p.Threads) * (i + 1)
+			out := make(chan []util.Cell)
+			channels = append(channels, out)
+
+			go worker(startHeight, endHeight, p.ImageWidth, world, p, out)
+		}
+
+		for j := 0; j < len(channels); j++ {
+			alive = append(alive, <-channels[j]...)
+		}
 	}
+
 
 	for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
@@ -87,6 +100,29 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 	for _, aliveCell := range alive { newWorld[aliveCell.Y][aliveCell.X] = 255 } //For every cell that should be alive, set it to a value of 255
 
 	return newWorld
+}
+
+func shouldCellBeAlive(x, y int, world [][]byte, aliveNeighbours int) bool {
+	if world[y][x] == 255 && (aliveNeighbours == 2 || aliveNeighbours == 3) {
+		return true
+	} else if world[y][x] == 0 && aliveNeighbours == 3 {
+		return true
+	} else {return false}
+}
+
+
+func worker(startY, endY, endX int, world [][]byte, p Params, out chan<- []util.Cell) {
+	aliveNextTurn := []util.Cell{}
+
+	for y := startY; y < endY; y++ {
+		for x := 0; x < endX; x++ {
+			aliveNeighbours := aliveNeighbours(p, world, x, y) //Count alive neighbours using the function
+			if (shouldCellBeAlive(x, y, world, aliveNeighbours)) {aliveNextTurn = append(aliveNextTurn, util.Cell{x, y})}
+
+		}
+	}
+
+	out<- aliveNextTurn
 }
 
 func aliveNeighbours(p Params, world [][]byte, x int, y int) int {
