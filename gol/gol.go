@@ -16,16 +16,15 @@ func Run(p Params, events chan<- Event, keyPresses <-chan rune) {
 	ioCommand := make(chan ioCommand)
 	ioIdle := make(chan bool)
 	ioFilename := make(chan string)
-	filename := make(chan string)
-	input := make(chan uint8)
-	output := make(chan uint8)
+	ioInput := make(chan uint8)
+	ioOutput := make(chan uint8)
 
 	ioChannels := ioChannels{
 		command:  ioCommand,
 		idle:     ioIdle,
-		filename: filename,
-		output:   output,
-		input:    input,
+		filename: ioFilename,
+		output:   ioOutput,
+		input:    ioInput,
 	}
 	go startIo(p, ioChannels)
 
@@ -34,8 +33,8 @@ func Run(p Params, events chan<- Event, keyPresses <-chan rune) {
 		ioCommand:  ioCommand,
 		ioIdle:     ioIdle,
 		ioFilename: ioFilename,
-		ioOutput:  output,
-		ioInput:    input,
+		ioOutput:  ioOutput,
+		ioInput:    ioInput,
 	}
 	distributor(p, distributorChannels)
 }

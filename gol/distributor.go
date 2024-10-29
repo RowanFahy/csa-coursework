@@ -1,6 +1,9 @@
 package gol
 
-import "uk.ac.bris.cs/gameoflife/util"
+import (
+	"strconv"
+	"uk.ac.bris.cs/gameoflife/util"
+)
 
 type distributorChannels struct {
 	events     chan<- Event
@@ -13,9 +16,11 @@ type distributorChannels struct {
 
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
-	c.ioFilename<- "/csa-coursework/images/16x16.pgm"
-	c.ioCommand<- 1
-	<-c.ioInput
+
+		c.ioCommand<- ioInput
+		c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
+
+
 
 
 	// TODO: Create a 2D slice to store the world.
@@ -23,24 +28,27 @@ func distributor(p Params, c distributorChannels) {
 	for i := range world { world[i] = make([]byte, p.ImageWidth) }
 
 
-
-
+	for y:=0; y<p.ImageHeight; y++ {
+		for x:=0; x<p.ImageWidth; x++ {
+			world[y][x] = <-c.ioInput
+		}
+	}
 
 	turn := 0
 	c.events <- StateChange{turn, Executing}
 
 	// TODO: Execute all turns of the Game of Life.
-	completedTurns := 0
 	if p.Turns > 0 {
 		for i := 0; i < p.Turns; i++ {
 			world = calculateNextState(p, world) //Iterate through all turns
-			completedTurns++
+			turn++
 		}
 	}
+
 	// TODO: Report the final state using FinalTurnCompleteEvent.
 	alive := calculateAliveCells(p, world)
 
-	c.events <- FinalTurnComplete{completedTurns, alive} //Uses FinalTurnComplete with calculateAliveCells
+	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
