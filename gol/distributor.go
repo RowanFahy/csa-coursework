@@ -15,13 +15,15 @@ type distributorChannels struct {
 	ioInput    <-chan uint8
 }
 
+
+
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 
 
 
-		c.ioCommand<- ioInput
-		c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
+	c.ioCommand<- ioInput
+	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
 
 
 
@@ -54,10 +56,17 @@ func distributor(p Params, c distributorChannels) {
 		}
 	}
 
+	c.ioCommand<- ioCheckIdle
+	<-c.ioIdle
+
+
+
 	// TODO: Report the final state using FinalTurnCompleteEvent.
 	alive := calculateAliveCells(p, world)
 
 	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
+
+	
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
@@ -86,8 +95,8 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 		}
 	} else {
 		for i := 0; i < p.Threads; i++ {
-			startHeight := (p.ImageHeight / p.Threads) * i
-			endHeight := (p.ImageHeight / p.Threads) * (i + 1)
+			startHeight := ((p.ImageHeight / p.Threads) * i)
+			endHeight := ((p.ImageHeight / p.Threads) * (i + 1)) + p.ImageHeight%p.Threads
 			out := make(chan []util.Cell)
 			channels = append(channels, out)
 
@@ -166,5 +175,8 @@ func ticker(turns *int, c distributorChannels, p Params, world [][]byte) {
 	for {
 		time.Sleep(2 * time.Second)
 		c.events <- AliveCellsCount{*turns, len(calculateAliveCells(p, world))}
+
 	}
 }
+
+
