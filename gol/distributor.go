@@ -3,6 +3,7 @@ package gol
 import (
 	"strconv"
 	"sync"
+	"time"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -41,12 +42,12 @@ func distributor(p Params, c distributorChannels) {
 
 
 	go func() { {
+		ticker := time.NewTicker(2 * time.Second)
 		for {
 			select {
 			case <- quit:
 				return
-			default:
-				//time.Sleep(2 * time.Second)
+			case <-ticker.C:
 				mutex.Lock()
 				c.events <- AliveCellsCount{turn, len(calculateAliveCells(p, world))}
 				mutex.Unlock()
