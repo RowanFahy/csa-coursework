@@ -2,7 +2,7 @@ package gol
 
 import (
 	"strconv"
-	"time"
+	"sync"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -19,46 +19,64 @@ type distributorChannels struct {
 
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
-
-
+	quit := make(chan bool)
+	turn := 0
+	var mutex sync.Mutex
 
 	c.ioCommand<- ioInput
 	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
 
 
-
 	// TODO: Create a 2D slice to store the world.
 	world := make([][]byte, p.ImageHeight)
 	for i := range world { world[i] = make([]byte, p.ImageWidth) }
-
-
 	for y:=0; y<p.ImageHeight; y++ {
 		for x:=0; x<p.ImageWidth; x++ {
 			world[y][x] = <-c.ioInput
 		}
 	}
 
-	turn := 0
-	var turnPointer *int
-	turnPointer = &turn
-
-
-
 	c.events <- StateChange{turn, Executing}
 
-	go ticker(turnPointer, c, p, world)
+
+
+	go func() { {
+		for {
+			select {
+			case <- quit:
+				return
+			default:
+				//time.Sleep(2 * time.Second)
+				mutex.Lock()
+				c.events <- AliveCellsCount{turn, len(calculateAliveCells(p, world))}
+				mutex.Unlock()
+			}
+		}
+	}}()
 
 	// TODO: Execute all turns of the Game of Life.
 	if p.Turns > 0 {
 		for i := 0; i < p.Turns; i++ {
+			mutex.Lock()
 			world = calculateNextState(p, world) //Iterate through all turns
 			turn++
+			mutex.Unlock()
+		}
+	}
+
+	quit <- true
+
+	c.ioCommand<- ioOutput
+	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(turn))
+
+	for y:=0; y<p.ImageHeight; y++ {
+		for x:=0; x<p.ImageWidth; x++ {
+			c.ioOutput<- world[y][x]
 		}
 	}
 
 	c.ioCommand<- ioCheckIdle
 	<-c.ioIdle
-
 
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
@@ -74,9 +92,12 @@ func distributor(p Params, c distributorChannels) {
 
 	c.events <- StateChange{turn, Quitting}
 
+
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	close(c.events)
 }
+
+
 
 func calculateNextState(p Params, world [][]byte) [][]byte {
 
@@ -171,12 +192,6 @@ func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 	return alive
 }
 
-func ticker(turns *int, c distributorChannels, p Params, world [][]byte) {
-	for {
-		time.Sleep(2 * time.Second)
-		c.events <- AliveCellsCount{*turns, len(calculateAliveCells(p, world))}
 
-	}
-}
 
 
