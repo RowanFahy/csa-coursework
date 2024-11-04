@@ -98,8 +98,6 @@ func distributor(p Params, c distributorChannels) {
 	close(c.events)
 }
 
-
-
 func calculateNextState(p Params, world [][]byte) [][]byte {
 
 	var alive []util.Cell                  //Make a slice of alive cells
@@ -192,7 +190,4 @@ func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 	}
 	return alive
 }
-
-
-
 
