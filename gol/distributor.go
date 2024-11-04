@@ -46,6 +46,7 @@ func distributor(p Params, c distributorChannels) {
 		for {
 			select {
 			case <- quit:
+				ticker.Stop()
 				return
 			case <-ticker.C:
 				mutex.Lock()
