@@ -17,55 +17,60 @@ type distributorChannels struct {
 }
 
 type Response struct {
-	finalWorld [][]byte
-	aliveCells []util.Cell
-	turnsElapsed int
+	FinalWorld   [][]byte
+	AliveCells   []util.Cell
+	TurnsElapsed int
 }
 
-type golRequest struct {
+type GolRequest struct {
 	Params Params
-	World [][]byte
+	World  [][]byte
 }
 
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 
-	c.ioCommand<- ioInput
-	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
-
-
+	c.ioCommand <- ioInput
+	c.ioFilename <- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
 
 	// TODO: Create a 2D slice to store the world.
 	world := make([][]byte, p.ImageHeight)
-	for i := range world { world[i] = make([]byte, p.ImageWidth) }
+	for i := range world {
+		world[i] = make([]byte, p.ImageWidth)
+	}
 
-	for y:=0; y<p.ImageHeight; y++ {
-		for x:=0; x<p.ImageWidth; x++ {
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
 			world[y][x] = <-c.ioInput
 		}
 	}
 
-	request := golRequest{p, world}
+	request := GolRequest{p, world}
 
 	turn := 0
 	c.events <- StateChange{turn, Executing}
 
-
 	client, err := rpc.Dial("tcp", ":8030")
-	if err != nil { log.Fatalf("Error connecting to serer: %v", err)}
-	defer client.Close()
+	if err != nil {
+		log.Fatalf("Error connecting to serer: %v", err)
+	}
+	defer func(client *rpc.Client) {
+		err := client.Close()
+		if err != nil {
+
+		}
+	}(client)
 
 	var response Response
-	client.Call("paramService.gameSimulation", request, &response)
+
+	err = client.Call("ParamService.GameSimulation", request, &response)
 	if err != nil {
-		log.Fatal("RPC error:", err)
+		log.Fatalf("RPC error: %v", err)
 	}
 
-
-
 	// TODO: Report the final state using FinalTurnCompleteEvent.
-	alive := response.aliveCells
-	turnsElapsed := response.turnsElapsed
+	alive := response.AliveCells
+	turnsElapsed := response.TurnsElapsed
 
 	c.events <- FinalTurnComplete{turnsElapsed, alive} //Uses FinalTurnComplete with calculateAliveCells
 
@@ -78,8 +83,3 @@ func distributor(p Params, c distributorChannels) {
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	close(c.events)
 }
-
-
-
-
-
