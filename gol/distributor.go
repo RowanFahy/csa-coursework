@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/rpc"
 	"strconv"
+	"uk.ac.bris.cs/gameoflife/util"
 )
 
 type distributorChannels struct {
@@ -16,7 +17,14 @@ type distributorChannels struct {
 }
 
 type Response struct {
-	Message string
+	finalWorld [][]byte
+	aliveCells []util.Cell
+	turnsElapsed int
+}
+
+type golRequest struct {
+	Params Params
+	World [][]byte
 }
 
 // distributor divides the work between workers and interacts with other goroutines.
@@ -24,6 +32,8 @@ func distributor(p Params, c distributorChannels) {
 
 	c.ioCommand<- ioInput
 	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
+
+
 
 	// TODO: Create a 2D slice to store the world.
 	world := make([][]byte, p.ImageHeight)
@@ -35,16 +45,18 @@ func distributor(p Params, c distributorChannels) {
 		}
 	}
 
+	request := golRequest{p, world}
+
 	turn := 0
 	c.events <- StateChange{turn, Executing}
 
 
-	client, err := rpc.Dial("tcp", "localhost:8030")
+	client, err := rpc.Dial("tcp", ":8030")
 	if err != nil { log.Fatalf("Error connecting to serer: %v", err)}
 	defer client.Close()
 
 	var response Response
-	client.Call("paramService.gameSimulation", p, &response)
+	client.Call("paramService.gameSimulation", request, &response)
 	if err != nil {
 		log.Fatal("RPC error:", err)
 	}
@@ -52,9 +64,10 @@ func distributor(p Params, c distributorChannels) {
 
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
-	//alive := calculateAliveCells(p, world)
+	alive := response.aliveCells
+	turnsElapsed := response.turnsElapsed
 
-	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
+	c.events <- FinalTurnComplete{turnsElapsed, alive} //Uses FinalTurnComplete with calculateAliveCells
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle

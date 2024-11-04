@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"fmt"
@@ -13,13 +13,22 @@ type Params struct {
 	ImageHeight int
 }
 
+type golRequest struct {
+	Params Params
+	World [][]byte
+}
+
 type Response struct {
-	Message string
+	finalWorld [][]byte
+	aliveCells []util.Cell
+	turnsElapsed int
 }
 
 type paramService struct {}
 
-func (ps *paramService) gameSimulation(p Params, world [][]byte) {
+func (ps *paramService) gameSimulation(request golRequest, reply *Response) error {
+	p := request.Params
+	world := request.World
 	turn := 0
 	// TODO: Execute all turns of the Game of Life.
 	if p.Turns > 0 {
@@ -30,6 +39,10 @@ func (ps *paramService) gameSimulation(p Params, world [][]byte) {
 	}
 	alive := calculateAliveCells(p, world)
 
+	reply.aliveCells = alive
+	reply.finalWorld = world
+	reply.turnsElapsed = turn
+	return nil
 }
 
 func calculateNextState(p Params, world [][]byte) [][]byte {
@@ -101,10 +114,10 @@ func main() {
 	paramService := new(paramService)
 	rpc.Register(paramService)
 
-	ln, err := net.Listen("tcp", ":8080")
+	ln, err := net.Listen("tcp", ":8030")
 	handleError(err)
 	defer ln.Close()
-	fmt.Println("Listening on :8080")
+	fmt.Println("Listening on :8030")
 
 	for {
 		conn, err := ln.Accept()
