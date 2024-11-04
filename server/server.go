@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"sync"
 	"uk.ac.bris.cs/gameoflife/util"
 )
+
+
+
+
 
 // Params struct holds parameters for the Game of Life simulation
 type Params struct {
@@ -20,6 +25,10 @@ type GolRequest struct { // Changed to exported type
 	World  [][]byte
 }
 
+type AliveCellsRequest struct {
+	Params Params
+}
+
 // Response struct holds the response data to be sent back to the client
 type Response struct {
 	FinalWorld   [][]byte    // Exported field
@@ -27,21 +36,30 @@ type Response struct {
 	TurnsElapsed int         // Exported field
 }
 
+type AliveCellsResponse struct {
+	NumAliveCells int
+	TurnsElapsed  int
+}
+
 // ParamService is the struct that defines the RPC methods (exported)
 type ParamService struct{}
 
+var world [][]byte
+var turn = 0
+var mutex = sync.Mutex{}
+
 // GameSimulation is the RPC method that performs the Game of Life simulation
-func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
+func (paramService *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
-	world := request.World
-	turn := 0
-
+	world = request.World
 	// Execute all turns of the Game of Life
 	if p.Turns > 0 {
 		for i := 0; i < p.Turns; i++ {
+			mutex.Lock()
 			world = calculateNextState(p, world) // Iterate through all turns
 			turn++                               // Increment the turn counter
+			mutex.Unlock()
 		}
 	}
 
@@ -128,6 +146,24 @@ func handleError(err error) {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
+}
+
+
+func (paramService *ParamService) AliveCellsEvent(request *AliveCellsRequest, reply *AliveCellsResponse) error {
+	mutex.Lock()
+	var alive []util.Cell
+	for y := 0; y < request.Params.ImageHeight; y++ {
+		for x := 0; x < request.Params.ImageWidth; x++ {
+			if world[y][x] == 255 {
+				alive = append(alive, util.Cell{X: x, Y: y}) // Collect alive cells
+			}
+		}
+	}
+	reply.NumAliveCells = len(alive)
+	reply.TurnsElapsed = turn
+	mutex.Unlock()
+
+	return nil
 }
 
 // main starts the RPC server
