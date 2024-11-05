@@ -14,6 +14,7 @@ type distributorChannels struct {
 	ioFilename chan<- string
 	ioOutput   chan<- uint8
 	ioInput    <-chan uint8
+	keyPresses <-chan rune
 }
 
 
@@ -21,64 +22,99 @@ type distributorChannels struct {
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 	quit := make(chan bool)
+	quitComputation := make(chan bool)
 	turn := 0
 	var mutex sync.Mutex
 
-	c.ioCommand<- ioInput
-	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
-
+	c.ioCommand <- ioInput
+	c.ioFilename <- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
 
 	// TODO: Create a 2D slice to store the world.
 	world := make([][]byte, p.ImageHeight)
-	for i := range world { world[i] = make([]byte, p.ImageWidth) }
-	for y:=0; y<p.ImageHeight; y++ {
-		for x:=0; x<p.ImageWidth; x++ {
+	for i := range world {
+		world[i] = make([]byte, p.ImageWidth)
+	}
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
 			world[y][x] = <-c.ioInput
 		}
 	}
 
 	c.events <- StateChange{turn, Executing}
 
-
-
-	go func() { {
-		ticker := time.NewTicker(2 * time.Second)
+	go func() {
+		isPaused := false
 		for {
 			select {
-			case <- quit:
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				mutex.Lock()
-				c.events <- AliveCellsCount{turn, len(calculateAliveCells(p, world))}
-				mutex.Unlock()
+			case x := <-c.keyPresses:
+				if x == 's' {
+					if isPaused == true {
+						outputPgm(c, world, p, turn)
+					}else if isPaused == false {
+						mutex.Lock()
+						outputPgm(c, world, p, turn)
+						mutex.Unlock()
+					}
+				}
+				if x == 'q' {
+					quitComputation<- true
+				}
+				if x == 'p' {
+					if isPaused == false {
+						mutex.Lock()
+						c.events <- StateChange{turn, Paused}
+						isPaused = true
+					} else if isPaused == true {
+						c.events <- StateChange{turn, Executing}
+						isPaused = false
+						mutex.Unlock()
+					}
+				}
+
 			}
 		}
-	}}()
+	}()
 
-	// TODO: Execute all turns of the Game of Life.
-	if p.Turns > 0 {
-		for i := 0; i < p.Turns; i++ {
+	go func() {
+		{
+			ticker := time.NewTicker(2 * time.Second)
+			for {
+				select {
+				case <-quit:
+					ticker.Stop()
+					return
+				case <-ticker.C:
+					mutex.Lock()
+					c.events <- AliveCellsCount{turn, len(calculateAliveCells(p, world))}
+					mutex.Unlock()
+				}
+			}
+		}
+	}()
+
+func() {
+	for i := 0; i < p.Turns; i++ {
+		select {
+		case <-quitComputation:
+			return
+		default:
 			mutex.Lock()
 			world = calculateNextState(p, world) //Iterate through all turns
 			turn++
 			mutex.Unlock()
 		}
 	}
+}()
+
+
 
 	quit <- true
 
-	c.ioCommand<- ioOutput
-	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(turn))
+	outputPgm(c, world, p, turn)
 
-	for y:=0; y<p.ImageHeight; y++ {
-		for x:=0; x<p.ImageWidth; x++ {
-			c.ioOutput<- world[y][x]
-		}
-	}
-
-	c.ioCommand<- ioCheckIdle
+	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
+
 
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
@@ -190,5 +226,20 @@ func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 		}
 	}
 	return alive
+}
+
+func outputPgm(c distributorChannels, world [][]byte, p Params, turn int) {
+	filename := (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(turn))
+	c.ioCommand <- ioOutput
+	c.ioFilename <- filename
+
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
+			c.ioOutput <- world[y][x]
+		}
+	}
+	c.ioCommand <- ioCheckIdle
+	<-c.ioIdle
+	c.events<- ImageOutputComplete{turn, filename}
 }
 
