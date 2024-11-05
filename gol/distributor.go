@@ -17,8 +17,6 @@ type distributorChannels struct {
 	keyPresses <-chan rune
 }
 
-
-
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 	quit := make(chan bool)
@@ -50,14 +48,19 @@ func distributor(p Params, c distributorChannels) {
 				if x == 's' {
 					if isPaused == true {
 						outputPgm(c, world, p, turn)
-					}else if isPaused == false {
+					} else if isPaused == false {
 						mutex.Lock()
 						outputPgm(c, world, p, turn)
 						mutex.Unlock()
 					}
 				}
 				if x == 'q' {
-					quitComputation<- true
+					if isPaused == true {
+						mutex.Unlock()
+						quitComputation <- true
+					} else {
+						quitComputation <- true
+					}
 				}
 				if x == 'p' {
 					if isPaused == false {
@@ -92,21 +95,19 @@ func distributor(p Params, c distributorChannels) {
 		}
 	}()
 
-func() {
-	for i := 0; i < p.Turns; i++ {
-		select {
-		case <-quitComputation:
-			return
-		default:
-			mutex.Lock()
-			world = calculateNextState(p, world) //Iterate through all turns
-			turn++
-			mutex.Unlock()
+	func() {
+		for i := 0; i < p.Turns; i++ {
+			select {
+			case <-quitComputation:
+				return
+			default:
+				mutex.Lock()
+				world = calculateNextState(p, world) //Iterate through all turns
+				turn++
+				mutex.Unlock()
+			}
 		}
-	}
-}()
-
-
+	}()
 
 	quit <- true
 
@@ -115,21 +116,16 @@ func() {
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 
-
-
 	// TODO: Report the final state using FinalTurnCompleteEvent.
 	alive := calculateAliveCells(p, world)
 
 	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
-
-	
 
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 
 	c.events <- StateChange{turn, Quitting}
-
 
 	// Close the channel to stop the SDL goroutine gracefully. Removing may cause deadlock.
 	close(c.events)
@@ -147,7 +143,9 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 		for y := 0; y < p.ImageHeight; y++ { //Iterate through all rows
 			for x := 0; x < p.ImageWidth; x++ { //Iterate through all columns
 				aliveNeighbours := aliveNeighbours(p, world, x, y) //Count alive neighbours using the function
-				 if (shouldCellBeAlive(x, y, world, aliveNeighbours)) {alive = append(alive, util.Cell{x, y})}
+				if shouldCellBeAlive(x, y, world, aliveNeighbours) {
+					alive = append(alive, util.Cell{x, y})
+				}
 			}
 		}
 	} else {
@@ -165,14 +163,15 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 		}
 	}
 
-
 	for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
 			newWorld[y][x] = 0 //Reset newWorld to be 0 across the board
 		}
 	}
 
-	for _, aliveCell := range alive { newWorld[aliveCell.Y][aliveCell.X] = 255 } //For every cell that should be alive, set it to a value of 255
+	for _, aliveCell := range alive {
+		newWorld[aliveCell.Y][aliveCell.X] = 255
+	} //For every cell that should be alive, set it to a value of 255
 
 	return newWorld
 }
@@ -182,7 +181,9 @@ func shouldCellBeAlive(x, y int, world [][]byte, aliveNeighbours int) bool {
 		return true
 	} else if world[y][x] == 0 && aliveNeighbours == 3 {
 		return true
-	} else {return false}
+	} else {
+		return false
+	}
 }
 
 func worker(startY, endY, endX int, world [][]byte, p Params, out chan<- []util.Cell) {
@@ -191,12 +192,14 @@ func worker(startY, endY, endX int, world [][]byte, p Params, out chan<- []util.
 	for y := startY; y < endY; y++ {
 		for x := 0; x < endX; x++ {
 			aliveNeighbours := aliveNeighbours(p, world, x, y) //Count alive neighbours using the function
-			if (shouldCellBeAlive(x, y, world, aliveNeighbours)) {aliveNextTurn = append(aliveNextTurn, util.Cell{x, y})}
+			if shouldCellBeAlive(x, y, world, aliveNeighbours) {
+				aliveNextTurn = append(aliveNextTurn, util.Cell{x, y})
+			}
 
 		}
 	}
 
-	out<- aliveNextTurn
+	out <- aliveNextTurn
 }
 
 func aliveNeighbours(p Params, world [][]byte, x int, y int) int {
@@ -209,7 +212,9 @@ func aliveNeighbours(p Params, world [][]byte, x int, y int) int {
 			}
 			ny := (y + i + p.ImageHeight) % p.ImageHeight
 			nx := (x + j + p.ImageWidth) % p.ImageWidth
-			if world[ny][nx] == 255 { sum++ }
+			if world[ny][nx] == 255 {
+				sum++
+			}
 		}
 	}
 
@@ -240,6 +245,5 @@ func outputPgm(c distributorChannels, world [][]byte, p Params, turn int) {
 	}
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
-	c.events<- ImageOutputComplete{turn, filename}
+	c.events <- ImageOutputComplete{turn, filename}
 }
-
