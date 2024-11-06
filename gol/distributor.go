@@ -25,9 +25,8 @@ func distributor(p Params, c distributorChannels) {
 	var mutex sync.Mutex
 
 	c.ioCommand <- ioInput
-	c.ioFilename <- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
+	c.ioFilename <- strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight)
 
-	// TODO: Create a 2D slice to store the world.
 	world := make([][]byte, p.ImageHeight)
 	for i := range world {
 		world[i] = make([]byte, p.ImageWidth)
@@ -35,6 +34,7 @@ func distributor(p Params, c distributorChannels) {
 	for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
 			world[y][x] = <-c.ioInput
+			if world[y][x] == 255 {c.events<-CellFlipped{0, util.Cell{x, y}}}
 		}
 	}
 
@@ -102,8 +102,9 @@ func distributor(p Params, c distributorChannels) {
 				return
 			default:
 				mutex.Lock()
-				world = calculateNextState(p, world) //Iterate through all turns
+				world = calculateNextState(p, world, c, turn) //Iterate through all turns
 				turn++
+				c.events <- TurnComplete{turn}
 				mutex.Unlock()
 			}
 		}
@@ -116,7 +117,6 @@ func distributor(p Params, c distributorChannels) {
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 
-	// TODO: Report the final state using FinalTurnCompleteEvent.
 	alive := calculateAliveCells(p, world)
 
 	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
@@ -131,13 +131,13 @@ func distributor(p Params, c distributorChannels) {
 	close(c.events)
 }
 
-func calculateNextState(p Params, world [][]byte) [][]byte {
+func calculateNextState(p Params, world [][]byte, c distributorChannels, turn int) [][]byte {
 
 	var alive []util.Cell                  //Make a slice of alive cells
 	newWorld := make([][]byte, len(world)) //Make a new world to return
 	copy(newWorld, world)                  //Copy world to newWorld
 
-	channels := []chan []util.Cell{}
+	var channels []chan []util.Cell
 
 	if p.Threads == 1 {
 		for y := 0; y < p.ImageHeight; y++ { //Iterate through all rows
@@ -150,8 +150,8 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 		}
 	} else {
 		for i := 0; i < p.Threads; i++ {
-			startHeight := ((p.ImageHeight / p.Threads) * i)
-			endHeight := ((p.ImageHeight / p.Threads) * (i + 1)) + p.ImageHeight%p.Threads
+			startHeight := (p.ImageHeight / p.Threads) * i
+			endHeight := ((p.ImageHeight / p.Threads) * (i + 1)) + p.ImageHeight % p.Threads
 			out := make(chan []util.Cell)
 			channels = append(channels, out)
 
@@ -173,6 +173,18 @@ func calculateNextState(p Params, world [][]byte) [][]byte {
 		newWorld[aliveCell.Y][aliveCell.X] = 255
 	} //For every cell that should be alive, set it to a value of 255
 
+	var flippedCells []util.Cell
+
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
+			if world[y][x] != newWorld[y][x] {
+				flippedCells = append(flippedCells, util.Cell{x, y})
+			}
+		}
+	}
+
+	c.events<- CellsFlipped{turn, flippedCells}
+
 	return newWorld
 }
 
@@ -187,7 +199,7 @@ func shouldCellBeAlive(x, y int, world [][]byte, aliveNeighbours int) bool {
 }
 
 func worker(startY, endY, endX int, world [][]byte, p Params, out chan<- []util.Cell) {
-	aliveNextTurn := []util.Cell{}
+	var aliveNextTurn []util.Cell
 
 	for y := startY; y < endY; y++ {
 		for x := 0; x < endX; x++ {
@@ -234,7 +246,7 @@ func calculateAliveCells(p Params, world [][]byte) []util.Cell {
 }
 
 func outputPgm(c distributorChannels, world [][]byte, p Params, turn int) {
-	filename := (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(turn))
+	filename := strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(turn)
 	c.ioCommand <- ioOutput
 	c.ioFilename <- filename
 
