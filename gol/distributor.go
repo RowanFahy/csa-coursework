@@ -134,8 +134,11 @@ func distributor(p Params, c distributorChannels) {
 func calculateNextState(p Params, world [][]byte, c distributorChannels, turn int) [][]byte {
 
 	var alive []util.Cell                  //Make a slice of alive cells
-	newWorld := make([][]byte, len(world)) //Make a new world to return
-	copy(newWorld, world)                  //Copy world to newWorld
+	newWorld := make([][]byte, p.ImageHeight)
+	for i := range newWorld {
+		newWorld[i] = make([]byte, p.ImageWidth)
+	}						//Make a new world to return
+	//copy(newWorld, world)                  //Copy world to newWorld
 
 	var channels []chan []util.Cell
 
