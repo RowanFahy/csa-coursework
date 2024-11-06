@@ -42,7 +42,9 @@ func distributor(p Params, c distributorChannels) {
 
 	go func() {
 		isPaused := false
+
 		for {
+
 			select {
 			case x := <-c.keyPresses:
 				if x == 's' {
@@ -58,7 +60,7 @@ func distributor(p Params, c distributorChannels) {
 					if isPaused == true {
 						mutex.Unlock()
 						quitComputation <- true
-					} else {
+					} else if isPaused == false {
 						quitComputation <- true
 					}
 				}
@@ -75,6 +77,7 @@ func distributor(p Params, c distributorChannels) {
 				}
 
 			}
+
 		}
 	}()
 
@@ -112,12 +115,16 @@ func distributor(p Params, c distributorChannels) {
 
 	quit <- true
 
+	mutex.Lock()
 	outputPgm(c, world, p, turn)
+	mutex.Unlock()
 
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 
+	mutex.Lock()
 	alive := calculateAliveCells(p, world)
+	mutex.Unlock()
 
 	c.events <- FinalTurnComplete{turn, alive} //Uses FinalTurnComplete with calculateAliveCells
 
@@ -262,3 +269,4 @@ func outputPgm(c distributorChannels, world [][]byte, p Params, turn int) {
 	<-c.ioIdle
 	c.events <- ImageOutputComplete{turn, filename}
 }
+
