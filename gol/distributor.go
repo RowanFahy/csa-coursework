@@ -1,7 +1,6 @@
 package gol
 
 import (
-	"flag"
 	"log"
 	"net/rpc"
 	"strconv"
@@ -73,9 +72,8 @@ func distributor(p Params, c distributorChannels) {
 	c.events <- StateChange{turn, Executing}
 
 	// establish rpc client connection
-	server := flag.String("server", "3.80.121.158:8030", "IP:port string to connect to as server")
-	flag.Parse()
-	client, err := rpc.Dial("tcp", *server)
+
+	client, err := rpc.Dial("tcp", "3.80.121.158:8030")
 	if err != nil {
 		log.Fatalf("Error connecting to server: %v", err)
 	}
