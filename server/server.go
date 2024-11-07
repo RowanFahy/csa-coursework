@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -147,7 +148,7 @@ func handleError(err error) {
 	}
 }
 
-// function used to send state of the game every 2 seconds
+// AliveCellsEvent function used to send state of the game every 2 seconds
 func (paramService *ParamService) AliveCellsEvent(request *AliveCellsRequest, reply *AliveCellsResponse) error {
 	mutex.Lock()
 	var alive []util.Cell
@@ -173,7 +174,9 @@ func main() {
 		return
 	}
 
-	ln, err := net.Listen("tcp", "3.80.121.158:8030")
+	pAddr := flag.String("port", "8030", "Port to listen on")
+	flag.Parse()
+	ln, err := net.Listen("tcp", ":"+*pAddr)
 	handleError(err)
 	defer func(ln net.Listener) {
 		err := ln.Close()
