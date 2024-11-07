@@ -174,7 +174,7 @@ func main() {
 		return
 	}
 
-	pAddr := flag.String("port", "8030", "Port to listen on")
+	pAddr := flag.String("port", ":8030", "Port to listen on")
 	flag.Parse()
 	ln, err := net.Listen("tcp", ":"+*pAddr)
 	handleError(err)
