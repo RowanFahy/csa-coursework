@@ -72,7 +72,7 @@ func distributor(p Params, c distributorChannels) {
 	c.events <- StateChange{turn, Executing}
 
 	// establish rpc client connection
-	client, err := rpc.Dial("tcp", ":8030")
+	client, err := rpc.Dial("tcp", "3.80.121.158")
 	if err != nil {
 		log.Fatalf("Error connecting to serer: %v", err)
 	}
@@ -134,6 +134,6 @@ func distributor(p Params, c distributorChannels) {
 	<-c.ioIdle
 
 	c.events <- StateChange{turn, Quitting}
-	
+
 	close(c.events)
 }

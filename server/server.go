@@ -173,7 +173,7 @@ func main() {
 		return
 	}
 
-	ln, err := net.Listen("tcp", ":8030")
+	ln, err := net.Listen("tcp", "3.80.121.158")
 	handleError(err)
 	defer func(ln net.Listener) {
 		err := ln.Close()
