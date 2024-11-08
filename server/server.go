@@ -46,11 +46,12 @@ func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) err
 
 	p := request.Params
 
-	for y := 0; y < p.ImageHeight; y++ {
+	/*for y := 0; y < p.ImageHeight; y++ {
 		for x := 0; x < p.ImageWidth; x++ {
 			world[y][x] = request.World[y][x]
 		}
-	}
+	}*/
+	copy(world, request.World)
 	turn = 0
 
 	// Execute all turns of the Game of Life
