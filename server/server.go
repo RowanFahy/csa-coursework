@@ -148,7 +148,6 @@ func handleError(err error) {
 func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsResponse) error {
 	mutex.Lock()
 	var alive []util.Cell
-	p := request.Params
 	for y := range(world) {
 		for x := range(world[y]) {
 			if world[y][x] == 255 {
