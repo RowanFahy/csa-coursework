@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -32,7 +31,7 @@ type Response struct {
 type ParamService struct{}
 
 // GameSimulation is the RPC method that performs the Game of Life simulation
-func (ParamService *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
+func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
 	world := request.World
@@ -139,9 +138,7 @@ func main() {
 		return
 	} // Register the service
 
-	pAddr := flag.String("port", "8030", "Port to listen on")
-	flag.Parse()
-	ln, err := net.Listen("tcp", ":"+*pAddr) // Listen on port 8030
+	ln, err := net.Listen("tcp", ":8030") // Listen on port 8030
 	handleError(err)
 	defer func(ln net.Listener) {
 		err := ln.Close()

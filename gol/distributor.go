@@ -50,7 +50,7 @@ func distributor(p Params, c distributorChannels) {
 	turn := 0
 	c.events <- StateChange{turn, Executing}
 
-	client, err := rpc.Dial("tcp", "3.80.121.158:8030")
+	client, err := rpc.Dial("tcp", "3.84.28.129:8030")
 	if err != nil {
 		log.Fatalf("Error connecting to serer: %v", err)
 	}
@@ -72,12 +72,12 @@ func distributor(p Params, c distributorChannels) {
 	alive := response.AliveCells
 	turnsElapsed := response.TurnsElapsed
 
-	c.ioCommand <- ioOutput
-	c.ioFilename <- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(response.TurnsElapsed))
+	c.ioCommand<- ioOutput
+	c.ioFilename<- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + "x" + strconv.Itoa(response.TurnsElapsed))
 
-	for y := 0; y < p.ImageHeight; y++ {
-		for x := 0; x < p.ImageWidth; x++ {
-			c.ioOutput <- response.FinalWorld[y][x]
+	for y:=0; y<p.ImageHeight; y++ {
+		for x:=0; x<p.ImageWidth; x++ {
+			c.ioOutput<- response.FinalWorld[y][x]
 		}
 	}
 
