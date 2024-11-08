@@ -141,7 +141,7 @@ func main() {
 
 	pAddr := flag.String("port", "8030", "Port to listen on")
 	flag.Parse()
-	ln, err := net.Listen("tcp", ":"+*pAddr)
+	ln, err := net.Listen("tcp", ":"+*pAddr) // Listen on port 8030
 	handleError(err)
 	defer func(ln net.Listener) {
 		err := ln.Close()
