@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/rpc"
 	"strconv"
+	"time"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -27,9 +28,14 @@ type GolRequest struct {
 	World  [][]byte
 }
 
+type AliveCellsResponse struct {
+	numAliveCells int
+	turnsElapsed int
+}
+
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
-
+	quit := make(chan bool)
 	c.ioCommand <- ioInput
 	c.ioFilename <- (strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight))
 
@@ -62,6 +68,25 @@ func distributor(p Params, c distributorChannels) {
 	}(client)
 
 	var response Response
+	var aliveCellsResponse AliveCellsResponse
+
+	// ticker to report number of cells alive every 2 seconds
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		for {
+			select {
+			case <-quit:
+				return
+			case <-ticker.C:
+				err = client.Call("ParamService.AliveCellsEvent", request, &aliveCellsResponse)
+				if err != nil {
+					log.Fatalf("RPC error: %v", err)
+				}
+				c.events <- AliveCellsCount{aliveCellsResponse.turnsElapsed, aliveCellsResponse.numAliveCells}
+
+			}
+		}
+	}()
 
 	err = client.Call("ParamService.GameSimulation", request, &response)
 	if err != nil {
@@ -86,6 +111,7 @@ func distributor(p Params, c distributorChannels) {
 
 	c.events <- FinalTurnComplete{turnsElapsed, alive} //Uses FinalTurnComplete with calculateAliveCells
 
+	quit <- true
 	// Make sure that the Io has finished any output before exiting.
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"sync"
 	"uk.ac.bris.cs/gameoflife/util"
 )
 
@@ -28,21 +29,37 @@ type Response struct {
 	TurnsElapsed int         // Exported field
 }
 
+type AliveCellsResponse struct {
+	numAliveCells int
+	turnsElapsed int
+}
+
 // ParamService is the struct that defines the RPC methods (exported)
 type ParamService struct{}
+
+var world [][]byte
+var turn int
+var mutex sync.Mutex
 
 // GameSimulation is the RPC method that performs the Game of Life simulation
 func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
-	world := request.World
-	turn := 0
+
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
+			world[y][x] = request.World[y][x]
+		}
+	}
+	turn = 0
 
 	// Execute all turns of the Game of Life
 	if p.Turns > 0 {
 		for i := 0; i < p.Turns; i++ {
+			mutex.Lock()
 			world = calculateNextState(p, world) // Iterate through all turns
 			turn++                               // Increment the turn counter
+			mutex.Unlock()
 		}
 	}
 
@@ -129,6 +146,24 @@ func handleError(err error) {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
+}
+
+func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsResponse) error {
+	mutex.Lock()
+	var alive []util.Cell
+	p := request.Params
+	for y := 0; y < p.ImageHeight; y++ {
+		for x := 0; x < p.ImageWidth; x++ {
+			if world[y][x] == 255 {
+				alive = append(alive, util.Cell{X: x, Y: y}) // Collect alive cells
+			}
+		}
+	}
+
+	reply.numAliveCells = len(alive)
+	reply.turnsElapsed = turn
+	mutex.Unlock()
+	return nil
 }
 
 // main starts the RPC server
