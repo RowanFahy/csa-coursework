@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -138,7 +139,9 @@ func main() {
 		return
 	} // Register the service
 
-	ln, err := net.Listen("tcp", ":8030") // Listen on port 8030
+	pAddr := flag.String("port", "8030", "Port to listen on")
+	flag.Parse()
+	ln, err := net.Listen("tcp", ":"+*pAddr)
 	handleError(err)
 	defer func(ln net.Listener) {
 		err := ln.Close()
