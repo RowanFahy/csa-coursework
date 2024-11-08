@@ -29,8 +29,8 @@ type GolRequest struct {
 }
 
 type AliveCellsResponse struct {
-	numAliveCells int
-	turnsElapsed int
+	NumAliveCells int
+	TurnsElapsed int
 }
 
 // distributor divides the work between workers and interacts with other goroutines.

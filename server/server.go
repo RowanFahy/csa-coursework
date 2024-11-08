@@ -30,8 +30,8 @@ type Response struct {
 }
 
 type AliveCellsResponse struct {
-	numAliveCells int
-	turnsElapsed int
+	NumAliveCells int
+	TurnsElapsed int
 }
 
 // ParamService is the struct that defines the RPC methods (exported)
@@ -161,8 +161,8 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 		}
 	}
 
-	reply.numAliveCells = len(alive)
-	reply.turnsElapsed = turn
+	reply.NumAliveCells = len(alive)
+	reply.TurnsElapsed = turn
 	mutex.Unlock()
 	return nil
 }
