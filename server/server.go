@@ -51,7 +51,7 @@ func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) err
 			world[y][x] = request.World[y][x]
 		}
 	}*/
-	copy(world, request.World)
+	world = request.World
 	turn = 0
 
 	// Execute all turns of the Game of Life
