@@ -68,7 +68,7 @@ func distributor(p Params, c distributorChannels) {
 	}(client)
 
 	var response Response
-	var aliveCellsResponse AliveCellsResponse
+
 
 	// ticker to report number of cells alive every 2 seconds
 	go func() {
@@ -76,13 +76,15 @@ func distributor(p Params, c distributorChannels) {
 		for {
 			select {
 			case <-quit:
+				ticker.Stop()
 				return
 			case <-ticker.C:
+				var aliveCellsResponse AliveCellsResponse
 				err = client.Call("ParamService.AliveCellsEvent", request, &aliveCellsResponse)
 				if err != nil {
 					log.Fatalf("RPC error: %v", err)
 				}
-				c.events <- AliveCellsCount{aliveCellsResponse.turnsElapsed, aliveCellsResponse.numAliveCells}
+				c.events <- AliveCellsCount{aliveCellsResponse.TurnsElapsed, aliveCellsResponse.NumAliveCells}
 
 			}
 		}
