@@ -149,8 +149,8 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 	mutex.Lock()
 	var alive []util.Cell
 	p := request.Params
-	for y := 0; y < p.ImageHeight; y++ {
-		for x := 0; x < p.ImageWidth; x++ {
+	for y := range(world) {
+		for x := range(world[y]) {
 			if world[y][x] == 255 {
 				alive = append(alive, util.Cell{X: x, Y: y}) // Collect alive cells
 			}
@@ -159,6 +159,7 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 
 	reply.NumAliveCells = len(alive)
 	reply.TurnsElapsed = turn
+
 	mutex.Unlock()
 	return nil
 }
