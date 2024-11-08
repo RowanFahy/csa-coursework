@@ -45,12 +45,8 @@ var mutex sync.Mutex
 func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
+    initialiseWorld(p)
 
-	for y := 0; y < p.ImageHeight; y++ {
-		for x := 0; x < p.ImageWidth; x++ {
-			world[y][x] = 0
-		}
-	}
 	world = request.World
 	turn = 0
 
@@ -167,6 +163,21 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 	return nil
 }
 
+func initialiseWorld(p Params) {
+	if world == nil {
+		world = make([][]byte, p.ImageHeight)
+		for i := range world {
+			world[i] = make([]byte, p.ImageWidth)
+		}
+	}
+
+	for y:= 0; y < p.ImageHeight; y++ {
+		for x:= 0; x < p.ImageWidth; x++ {
+			world[y][x] = 0
+		}
+	}
+}
+
 // main starts the RPC server
 func main() {
 	paramService := new(ParamService) // Create a new ParamService instance
@@ -186,6 +197,7 @@ func main() {
 		}
 	}(ln) // Ensure the listener is closed on exit
 	fmt.Println("Listening on :8030")
+
 
 	for {
 		conn, err := ln.Accept() // Accept incoming connections
