@@ -164,12 +164,12 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 }
 
 func initialiseWorld(p Params) {
-	if world == nil {
+
 		world = make([][]byte, p.ImageHeight)
 		for i := range world {
 			world[i] = make([]byte, p.ImageWidth)
 		}
-	}
+
 
 	for y:= 0; y < p.ImageHeight; y++ {
 		for x:= 0; x < p.ImageWidth; x++ {
