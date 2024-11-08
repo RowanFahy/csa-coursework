@@ -32,7 +32,7 @@ type Response struct {
 type ParamService struct{}
 
 // GameSimulation is the RPC method that performs the Game of Life simulation
-func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
+func (ParamService *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
 	world := request.World
