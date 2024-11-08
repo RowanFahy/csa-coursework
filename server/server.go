@@ -45,6 +45,7 @@ var mutex sync.Mutex
 func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) error { // Changed to exported type
 
 	p := request.Params
+
     initialiseWorld(p)
 
 	world = request.World
@@ -54,6 +55,7 @@ func (ps *ParamService) GameSimulation(request *GolRequest, reply *Response) err
 	if p.Turns > 0 {
 		for i := 0; i < p.Turns; i++ {
 			mutex.Lock()
+			fmt.Printf("Executing turn %d\n", i)
 			world = calculateNextState(p, world) // Iterate through all turns
 			turn++                               // Increment the turn counter
 			mutex.Unlock()
@@ -164,7 +166,7 @@ func (ps *ParamService) AliveCellsEvent(request *GolRequest, reply *AliveCellsRe
 }
 
 func initialiseWorld(p Params) {
-
+		fmt.Println("Initialising World")
 		world = make([][]byte, p.ImageHeight)
 		for i := range world {
 			world[i] = make([]byte, p.ImageWidth)
